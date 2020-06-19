@@ -56,26 +56,6 @@ def reed_muller(r, m):
     )
 
 
-def _yield_bin(x, n):
-    while n:
-        yield x % 2
-        x = x >> 1
-        n -= 1
-
-
-def _bin(x, n):
-    result = list(_yield_bin(x, n))
-    result.reverse()
-    return result
-
-
-def printbin(m):
-    if len(m.shape) == 1:
-        m = [m]
-    s = "\n".join("".join(u"\u25A0" if x else u"\u25A1" for x in row) for row in m)
-    print(s)
-
-
 class ReedMuller:
     def __init__(self, r, m, limit=None):
         gm = reed_muller(r, m)
@@ -106,18 +86,6 @@ class ReedMuller:
         return self.codewords[msg]
 
     def decode(self, block):
-        if isinstance(block, str) or isinstance(block, bytes):
-            block = [int(x) for x in block]
-        for x in block:
-            assert x in (0, 1)
-        block = numpy.array(block) * 2 - 1
-        scores = block.dot(self.decodewords)
-        i = scores.argmax()
-        if scores[i] <= self.n - self.d:
-            raise ValueError("Decoding error, could not recover message")
-        return i  # _bin(i, self.k)
-
-    def soft_decode(self, block):
         for x in block:
             assert 0 <= x <= 1  # Message elements are probabilities
         p = numpy.array(block)
