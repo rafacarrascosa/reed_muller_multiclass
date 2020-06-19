@@ -73,7 +73,6 @@ class ReedMuller:
             codeword = msg.dot(gm) % 2
             codewords.append(codeword)
         self.codewords = numpy.array(codewords)
-        self.decodewords = (self.codewords * 2 - 1).T
 
     def encode(self, msg):
         if isinstance(msg, str) or isinstance(msg, bytes):
@@ -92,8 +91,8 @@ class ReedMuller:
     def decode(self, block):
         for x in block:
             assert 0 <= x <= 1  # Message elements are probabilities
-        p = numpy.array(block)
+        p = numpy.array(block, dtype=float)
         scores = self.codewords * p + (1 - self.codewords) * (1 - p)
-        scores = numpy.log(scores)
+        scores = numpy.log(scores + 1e-7)
         i = scores.sum(axis=1).argmax()
         return i
