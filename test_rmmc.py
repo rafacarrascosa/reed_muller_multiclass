@@ -3,12 +3,49 @@ import numpy
 from reed_muller_multiclass import reed_muller
 
 
+def _cm(s):
+    s = s.split()
+    s.sort(reverse=True)
+    return numpy.array([[int(x) for x in xs] for xs in s])
+
+
 def test_reed_muller_smallest():
     gm = reed_muller(1, 1)
-    assert (gm == numpy.array([
-        [1, 1],
-        [0, 1]
-    ])).all()
+    assert (gm == _cm("11 01")).all()
+
+
+def test_reed_muller_1_3():
+    # according to https://en.wikipedia.org/wiki/Reed%E2%80%93Muller_code
+    # but shuffling the columns to read left to right.
+    correct = """
+    11111111
+    01010101
+    00110011
+    00001111
+    """
+    gm = reed_muller(1, 3)
+    assert (gm == _cm(correct)).all()
+
+
+def test_reed_muller_2_3():
+    # according to https://en.wikipedia.org/wiki/Reed%E2%80%93Muller_code
+    # but shuffling the columns to read left to right.
+    correct = """
+    11111111
+    01010101
+    00110011
+    00001111
+    00010001
+    00000101
+    00000011
+    """
+    gm = reed_muller(2, 3)
+    assert (gm == _cm(correct)).all()
+
+
+def test_redd_muller_shape():
+    gm = reed_muller(1, 9)
+    assert gm.shape == (9 + 1, 2 ** 9)
 
 
 def test_reed_muller_invalid_values():

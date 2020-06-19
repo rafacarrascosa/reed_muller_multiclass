@@ -13,18 +13,19 @@ def _build_square(A, B, C, D):
     ))
 
 
-def reed_muller_trivial(m):
+def _reed_muller_trivial(m):
     """
     r and m are equal
     """
-    assert m >= 1
+    if m < 1:
+        raise ValueError("m cannot be less than 1")
     if m == 1:
         return numpy.array([
             [1, 1],
             [0, 1]
         ])
     mm = m - 1
-    smaller = reed_muller_trivial(mm)
+    smaller = _reed_muller_trivial(mm)
     return _build_square(
         smaller,
         smaller,
@@ -34,9 +35,12 @@ def reed_muller_trivial(m):
 
 
 def reed_muller(r, m):
-    assert 1 <= r <= m
+    if r < 1:
+        raise ValueError("r cannot be less than 1")
+    if r > m:
+        raise ValueError("m cannot be smaller than r")
     if r == m:
-        return reed_muller_trivial(m)
+        return _reed_muller_trivial(m)
     mm = m - 1
     if r == 1:
         smaller = reed_muller(r, mm)
