@@ -60,39 +60,32 @@ def reed_muller(r, m):
     )
 
 
+def _binary_space_matrix(n, bits):
+    result = numpy.unpackbits(numpy.arange(n, dtype=">u4").view("uint8"))
+    return result.reshape((n, -1))[:, -bits:]
+
+
 class ReedMuller:
     def __init__(self, r, m, limit=None):
         gm = reed_muller(r, m)
-        self.k, self.n = gm.shape
-        self.d = 2 ** (m - r)
-        codewords = []
-        for i, msg in enumerate(product((0, 1), repeat=self.k)):
-            if i == limit:
-                break
-            msg = numpy.array([x for x in msg])
-            codeword = msg.dot(gm) % 2
-            codewords.append(codeword)
-        self.codewords = numpy.array(codewords)
+        k, _ = gm.shape
+        if limit is None:
+            limit = 2 ** k
+        codewords = _binary_space_matrix(limit, k)
+        codewords = codewords.dot(gm.astype("uint8"))
+        codewords %= 2
+        self.codewords = codewords
 
-    def encode(self, msg):
-        if isinstance(msg, str) or isinstance(msg, bytes):
-            msg = int(msg, 2)
-        if isinstance(msg, list):
-            x = 0
-            for bit in msg:
-                x += bit
-                x = x << 1
-            x = x >> 1
-            msg = x
-        if msg >= len(self.codewords) or msg < 0:
+    def encode(self, i):
+        if i >= len(self.codewords) or i < 0:
             raise ValueError("Message out of range")
-        return self.codewords[msg]
+        return self.codewords[i]
 
     def decode(self, block):
-        for x in block:
-            assert 0 <= x <= 1  # Message elements are probabilities
         p = numpy.array(block, dtype=float)
+        if (p < 0).any() or (p > 1).any():
+            raise ValueError("decoding block elements must be numbers between 0 and 1")
         scores = self.codewords * p + (1 - self.codewords) * (1 - p)
-        scores = numpy.log(scores + 1e-7)
+        scores = numpy.log(scores + 1e-11)
         i = scores.sum(axis=1).argmax()
         return i
