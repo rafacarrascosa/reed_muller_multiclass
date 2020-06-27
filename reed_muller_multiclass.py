@@ -1,4 +1,3 @@
-from itertools import product
 import numpy
 
 
@@ -84,7 +83,7 @@ class ReedMuller:
     def decode(self, block):
         p = numpy.array(block, dtype=float)
         if (p < 0).any() or (p > 1).any():
-            raise ValueError("decoding block elements must be numbers between 0 and 1")
+            raise ValueError("block must be numbers between 0 and 1")
         scores = self.codewords * p + (1 - self.codewords) * (1 - p)
         scores = numpy.log(scores + 1e-11)
         i = scores.sum(axis=1).argmax()
