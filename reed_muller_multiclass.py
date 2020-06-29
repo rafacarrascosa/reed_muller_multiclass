@@ -64,7 +64,7 @@ def _binary_space_matrix(n, bits):
     return result.reshape((n, -1))[:, -bits:]
 
 
-class ReedMuller:
+class ReedMullerCodec:
     def __init__(self, r, m, limit=None):
         gm = reed_muller(r, m)
         k, _ = gm.shape
@@ -73,6 +73,8 @@ class ReedMuller:
         codewords = _binary_space_matrix(limit, k)
         codewords = codewords.dot(gm.astype("uint8"))
         codewords %= 2
+        # Remove columns with all zeros or all ones
+        codewords = codewords[:, codewords.any(axis=0) & (~codewords).any(axis=0)]
         self.codewords = codewords
 
     def encode(self, i):
@@ -80,11 +82,15 @@ class ReedMuller:
             raise ValueError("Message out of range")
         return self.codewords[i]
 
-    def decode(self, block):
+    def decode_log_proba(self, block):
         p = numpy.array(block, dtype=float)
         if (p < 0).any() or (p > 1).any():
             raise ValueError("block must be numbers between 0 and 1")
         scores = self.codewords * p + (1 - self.codewords) * (1 - p)
         scores = numpy.log(scores + 1e-11)
-        i = scores.sum(axis=1).argmax()
+        return scores.sum(axis=1)
+
+    def decode(self, block):
+        lp = self.decode_log_proba(block)
+        i = lp.argmax()
         return i

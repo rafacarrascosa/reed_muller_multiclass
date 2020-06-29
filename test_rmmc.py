@@ -1,6 +1,6 @@
 import pytest
 import numpy
-from reed_muller_multiclass import reed_muller, ReedMuller
+from reed_muller_multiclass import reed_muller, ReedMullerCodec
 
 
 def _cm(s):
@@ -57,6 +57,17 @@ def test_gm_invalid_values():
 
 
 def test_reed_muller_2_4_back_and_forth():
-    rm = ReedMuller(2, 4)
+    rm = ReedMullerCodec(2, 4)
     for i in range(2 ** 11):
         assert i == rm.decode(rm.encode(i))
+
+
+def test_reed_muller_limit_is_shorter():
+    a = ReedMullerCodec(2, 5, limit=5).encode(4)
+    b = ReedMullerCodec(2, 5).encode(4)
+    assert len(a) < len(b)
+
+
+def test_reed_muller_limit_raises():
+    with pytest.raises(ValueError):
+        ReedMullerCodec(1, 3, limit=5).encode(100)
