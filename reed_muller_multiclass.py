@@ -1,4 +1,7 @@
 import numpy as np
+from sklearn.base import ClassifierMixin
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.utils.validation import check_is_fitted, _deprecate_positional_args
 
 
 def _build_square(A, B, C, D):
@@ -94,3 +97,72 @@ class ReedMullerCodec:
         lp = self.decode_log_proba(block)
         i = lp.argmax()
         return i
+
+
+class ReedMullerMultiClass(ClassifierMixin):
+    @_deprecate_positional_args
+    def __init__(self, estimator, *, n_jobs=None):
+        # FIXME: Check estimator has predict_proba method
+        self.multi_output = MultiOutputClassifier(estimator, n_jobs=n_jobs)
+
+    def fit(self, X, Y, sample_weight=None, **fit_params):
+        self.classes_ = np.unique(Y)
+        n_classes = len(self.classes_)
+        if n_classes < 3:
+            pass  # Fixme: Raise warning? Exception?
+        self.class_to_index = dict((c, i) for i, c in enumerate(self.classes_))
+        # Choose Reed Muller parameters in function of n_classes
+        r, m = self._rm_policy(n_classes)
+        self.rm = ReedMullerCodec(r, m, limit=n_classes)
+        Y = self.encode_labels(Y)
+        self.multi_output.fit(X, Y, sample_weight, **fit_params)
+
+    def decision_function(self, X):
+        check_is_fitted(self)
+
+        Y = self.multi_output.predict(X)
+        return self.decode_log_proba(Y)
+
+    def predict_proba(self, X):
+        check_is_fitted(self)
+
+        Y = self.multi_output.predict(X)
+        Y = np.exp(self.decode_log_proba(Y))
+        Y = Y / Y.sum(axis=1)
+        return Y
+
+    def predict(self, X):
+        check_is_fitted(self)
+
+        Y = self.multi_output.predict(X)
+        Y = self.decode_log_proba(Y).argmax(axis=1)
+        return np.array([self.classes_[i] for i in Y])
+
+    def encode_labels(self, Y):
+        Y = (self.class_to_index[c] for c in Y)  # Encode classes as integers
+        Y = np.array([self.rm.encode(i) for i in Y])  # Encode integers as an RM ECC
+        return Y
+
+    def decode_log_proba(self, Y):
+        Z = np.empty((len(Y), len(self.classes_)))
+        for i, bits in enumerate(Y):
+            Z[i] = self.rm.decode_log_proba(bits)
+        return Z
+
+    @staticmethod
+    def _rm_options():
+        m = 0
+        # For a small number of classes, give order 1 RM codes
+        for m in range(1, 4):
+            yield 1, m, m + 1
+        # For a larger number of classes, give order 2 RM codes
+        m = 3
+        while True:
+            yield 2, m, int((m * (m - 1)) / 2) + m + 1
+            m += 1
+
+    @classmethod
+    def _rm_policy(cls, n_classes):
+        for r, m, rows in cls._rm_options():
+            if 2 ** rows >= n_classes:
+                return r, m
